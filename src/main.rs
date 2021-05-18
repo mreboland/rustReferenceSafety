@@ -109,6 +109,30 @@ fn main() {
 
 
 
+    // Passing References as Arguments
+
+    // Now that we've shown how a function's signature relates to its body, let's examine how it relates to the function's callers:
+
+    // This could be written more briefly: fn g(p: &i32),
+    // but we'll write out the lifetimes for now.
+    fn g<'a>(p: &'a i32) { ... }
+
+    let x = 10;
+    g(&x);
+
+    // From g's signature alone, Rust knows it will not save p anywhere that might outlive the call. Any lifetime that encloses the call must work for 'a. So Rust chooses the smallest possible lifetime for &x, that of the call to g. This meets all constrains. It doesn't outlive x, and encloses the entire call to g so the code passes muster.
+
+    // Note that although g takes a lifetime parameter 'a, we didn't need to mention it when calling g. We only need to worry about lifetime parameters when defining functions and types. When using them, Rust infers the lifetimes for us.
+
+    // What if we tried to pass &x to our function f from earlier that stores its argument in a static?
+    fn f(p: &'static i32) { ... }
+
+    let x = 10;
+    f(&x);
+
+    // The above fails to compile. The reference &x must not outlive x, but by passing it to f, we constrain it to live at least as long as 'static (which outlives all other lifetimes in a Rust program). There's no way to satisfy everyone here, so Rust rejects the code.
+
+
 
 
 
