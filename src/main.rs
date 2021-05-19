@@ -168,5 +168,80 @@ fn main() {
 
 
 
+    // Structs Containing References
+
+    // How does Rust handle references stored in data structures? Using the previous error prone example, we've moved the reference inside a structure:
+
+    // This does not compile
+    struct S {
+        r: &i32
+    }
+
+    let s;
+    {
+        let x = 10;
+        s = S { r: &x };
+    }
+
+    assert_eq!(*s.r, 10); // bad: reads from dropped 'x'
+
+    // The safety constraints Rust places on references can't magically disappear just because we hid the ref inside a struct. Somehow, those constraints must end up applying to S as well. Rust throws an error:
+    // Missing lifetime specifier...
+    // expected lifetime parameter...
+
+    // Whenever a ref type appears inside another type's definition, we must write out its lifetime:
+    struct S {
+        r: &'static i32
+    }
+    // The above says that r can only refer to i32 values that will last for the lifetime of the program, which is rather limiting. The alternative is to give the type a lifetime parameter 'a, and use that for r:
+    struct S<'a> {
+        r: &'a i32
+    }
+    // Now the S type has a lifetime, just as ref types do. Each value we create of type S gets a fresh lifetime 'a, which becomes constrained by how we use the value. The lifetime of any ref we store in r had better enclose 'a, and 'a must outlast the lifetime of wherever we store the S.
+
+    // Looking back at the previous code, the expression S { r: &x } creates a fresh S value with some lifetime 'a. When we store &x in the r field, we constrain 'a to lie entirely within x's lifetime.
+
+    // The assignment s = S { ... } stores this S in a variable whose lifetime extends to the end of the example, constraining 'a to outlast the lifetime of s. Rust has now arrived at the same contradictory constraints as before. 'a must not outlive x, yet must live at least as long as s. No satisfactory lifetime exists, and Rust rejects the code.
+
+    // How does a type with a lifetime parameter behave when placed inside some other type?
+    struct T {
+        s: S // not adequate
+    }
+    // Rust errors just as it did when we tried placing a ref in S without specifying its lifetime:
+    // missing lifetime specifier...
+    // Expected lifetime parameter...
+
+    // We can't leave off S's lifetime parameter here. Rust needs to know how a T's lifetime relates to that of the ref in its S in order to apply the same checks to T that it does for S and plain references.
+
+    // Giving s the 'static lifetime works:
+    struct T {
+        s: S<'static>
+    }
+    // The s field may only borrow values that live for the entire execution of the program. This means that a T can't borrow a local variable, there are no special constraints on a T's lifetime.
+
+    // The other approach would be to give T its own lifetime parameter, and pass that to S:
+    struct T<'a> {
+        s: S<'a>
+    }
+    // By taking a lifetime parameter 'a and using it in s's type, we've allowed Rust to relate a T value's lifetime to that of the ref its S holds.
+
+    // A type's lifetime parameters always reveal whether it contains references with interesting (that is, non-'static) lifetimes, and what those lifetimes can be.
+
+    // For example, suppose we have a parsing function that takes a slice of bytes, and returns a structure holding the results of the parse:
+    fn parse_record<'i>(input: &'i [u9]) -> Record<'i> { ... }
+    // Looking at the above, we can tell that if we received a Record from parse_record, whatever refs it contains must point into the input buffer we passed in, and nowhere else (except perhaps at 'static values).
+
+    // This exposure of internal behaviour is the reason Rust requires types that contain refs to take explicit lifetime parameters. There's no reason Rust cound't simply make up a distinct lifetime for each ref in the struct and save us the trouble of writing them out. Early on Rust worked this way but devs fount it confusing. It is helpful to know when one value borrows something from another value, especially when working through errors.
+
+    // Every type in Rust has a lifetime, including i32 and String. Most are simply 'static, meaning that values of those types can live for as long as we'd like. For example, a Vec<i32> is self-contained, and needn't be dropped before any particular variable goes out of scope. But a type like Vec<&'a i32> has a lifetime that must be enclosed by 'a. It must be dropped whiles its referents are still alive.
+
+
+
+    
+
+
+
+
+
 
 }
