@@ -280,7 +280,53 @@ fn main() {
 
 
 
-    
+    // Omitting Lifetime Parameters
+
+    // If our function doesn't return any references (or other types that require lifetime parameters), then we never need to write out lifetime for our parameters. Rust just assigns a distinct lifetime to each spot that needs one. For example:
+    struct S<'a, 'b> {
+        x: &'a i32,
+        y: &'b i32
+    }
+
+    fn sum_r_xy(r: &i32, s: S) -> i32 {
+        r + s.x + s.y
+    }
+    // The above function's signature is shorthand for:
+    fn sum_r_xy<'a, 'b, 'c>(r: &'a i32, s: S<'b, 'c>) -> i32 { ... }
+
+    // If we do return refs or other types with lifetime parameters, Rust still tries to make the unambiguous cases easy. If there's only a single lifetime that appears among our function's parameters, then Rust assumes any lifetime in our return value must be that one:
+    fn first_third(point: &[i32; 3]) -> (&i32, &i32) {
+        (&point[0], &point[2])
+    }
+    // With all the lifetimes written out, the equivalent would be:
+    fn first_third<'a>(point: &'a [i32; 3]) -> (&'a i32, &'a i32) { ... }
+
+    // If there are multiple lifetimes among our parameters, then there's no natural reason to prefer on over the other for the return value, and Rust makes us spell out what's going on.
+
+    // If our function is a method on some type and takes its self parameter by ref, then that breaks the tie. Rust assumes that self's lifetime is the one to give everything in our return value. (A self parameter refers to the value the method is being called on. Rust's equivalent of this in JS or like self in Python. More on it in a later chapter).
+
+    // For example, we can write the following:
+    struct StringTable {
+        elements: Vec<String>,
+    }
+
+    impl StringTable {
+        fn find_by_prefix(&self, prefix: &str) -> Option<&String> {
+            for i in 0 .. self.elements.len() {
+                if self.elements[i].starts_with(prefix) {
+                    return Some(&self.elements[i]);
+                }
+            }
+
+            None
+        }
+    }
+
+    // The find_by_prefix method's signature is shorthand for:
+    fn find_by_prefix<'a, 'b>(&'a self, prefix: &'b str) -> Option<&'a String>
+
+    // Rust assumes that whatever we're borrowing, we're borrowing from self. These abbreviations are meant to be helpful without introducing surprises. When they're not what we want, we can always write the lifetimes out explicitly.
+
 
 
 
