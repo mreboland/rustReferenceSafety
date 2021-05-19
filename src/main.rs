@@ -237,6 +237,49 @@ fn main() {
 
 
 
+    // Distinct Lifetime Parameters
+
+    // Suppose we've defined a structure containing two refs:
+    struct S<'a> {
+        x: &'a i32,
+        y: &'a i32
+    }
+
+    // Both refs use the same lifetime 'a. This could be a problem if our code wants to do something life this:
+    let x = 10;
+    let r;
+    {
+        let y = 20;
+
+        {
+            let s = S { x: &x, y: &y };
+            r = s.x;
+        }
+    }
+    // The above code doesn't create any dangling pointers. The ref to y stays in s, which goes out of scope before y does. The ref to x ends up in r, which doesn't outlive x.
+
+    // If we try to compile this, Rust will complain that y does not live long enough, even though it clearly does. Why? The reasons are:
+    // 1. Both fields of S are refs with the same lifetime 'a, so Rust must find a single lifetime that works for both s.x and s.y.
+    // 2. We assign r = s.x, requiring 'a to enclose r's lifetime
+    // 3. we initialized s.y with &y, requiring 'a to be no longer than y's lifetime.
+
+    // These constraints are impossible to satisfy. No lifetime is shorter than y's scope, but longer than r's. Rust errors out.
+
+    // The problem arises because both references in S have the same lifetime 'a. Changing the df of S to let each ref have a distinct lifetime fixes everything:
+    struct S<'a, b> {
+        x: &'a i32,
+        y: &'b i32
+    }
+    // With this def, s.x and s.y have independent lifetimes. What we do with s.x has no effect on what we store in s.y, so it's easy to satisfy the constraints. Now, 'a can simply be r's lifetime, and 'b can be s's (y's lifetime would work too for 'b, but Rust tries to choose the smallest lifetime that works). Everything's fine.
+
+    // Function signatures can have similar effects. Suppose we have a function life this:
+    fn f<'a>(r: &'a i32, s: &'a i32) -> &'a i32 { r } // perhaps to tight
+    // Both refs parameters use the same lifetime 'a, which can unnecessarily constrain the caller in the same way we saw earlier. If this is a problem, we can let parameters' lifetimes vary independently:
+    fn f<'a, 'b>(r: &'a i32, s: &'b i32) -> &'a i32 { r } // looser
+    // The downside to this is that adding lifetime can make types and function signatures harder to read. It's best to go from simple first then loosen restrictions until the code compiles. Because Rust only runs when safe, waiting to be told there is a problem is an acceptable tactic in Rust.
+
+
+
     
 
 
