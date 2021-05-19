@@ -134,6 +134,39 @@ fn main() {
 
 
 
+    // Returning References
+
+    // It's common for a function to take a reference to some data structure, and then return a reference into some part of that structure. For example, here's a function that returns a reference to the smallest element of a slice:
+
+    // v should have at least one element.
+    fn smallest(v: &[i32]) -> i32 {
+        let mut s = &v[0];
+        for r in &v[1..] {
+            if *r < *s { s = r };
+        }
+        
+        s
+    }
+
+    // We've omitted lifetimes from the function's signature in the usual way. When a function takes a single ref as an argument, and returns a single ref, Rust assumes that the two must have the same lifetime. Writing it out explicitly:
+    fn smallest<'a>(v: &'a [i32]) -> &'a i32 { ... }
+
+    // Suppose we call smallest like this:
+    let s;
+    {
+        let parabola = [9, 4, 1, 0, 1, 4, 9];
+        s = smallest(&parabola);
+    }
+    assert_eq!(*s, 0); // bad: points to element of dropped array
+
+    // From smallest's signature, we can see that its argument and return value must have the same lifetime, 'a. In our call, the argument &parabola must not outlive parabola itself. Yet smallest's return value must live at least as long as s. There's no possible lifetime 'a that can satisfy both constraints, so Rust reject the code:
+    // error: `parabola` does not live long enough...
+
+    // Moving assert_eq into the the inner brackets so that it's contained within parabola's lifetime fixes the issue.
+
+    // Lifetimes in function signatures let Rust asses the relationships between the references we pass to the function and those the function returns, and ensure they're being used safely.
+
+
 
 
 }
